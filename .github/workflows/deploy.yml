@@ -22,6 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # Pages を「GitHub Actions」ソースとして自動有効化(手動設定不要に)
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - run: npm install
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
