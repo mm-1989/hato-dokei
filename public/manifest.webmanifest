@@ -1,0 +1,18 @@
+{
+  "name": "はとどけい",
+  "short_name": "はとどけい",
+  "description": "クラシックな鳩時計で、時間を楽しく学べる幼児向けアプリ。",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ece3d4",
+  "theme_color": "#43280f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>はとどけい — モックアップ / 画面遷移 / 差し替え設計</title>
+<style>
+  :root{
+    --brass:#caa53d; --cream:#f6ecd2; --ink:#2a1a0c;
+    --bg:#ece3d4; --panel:#fffaf0; --accent:#2f8f6b; --accent-d:#1f6e51;
+    --font:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro","Rounded Mplus 1c","Yu Gothic UI","Yu Gothic",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:var(--font);color:#33291c;
+    background:radial-gradient(120% 80% at 50% -10%, #f4ecde 0%, var(--bg) 60%, #ddd0bb 100%);
+    min-height:100vh;padding:28px 18px 60px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:#7a6a52;margin:0 0 22px;font-size:13px;max-width:760px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .stage{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start;justify-content:center}
+
+  /* device */
+  .device{width:392px;flex:0 0 auto;background:#1c1c1f;border-radius:42px;padding:14px;
+    box-shadow:0 26px 50px rgba(40,25,8,.35), inset 0 0 0 2px #333}
+  .screen{position:relative;width:100%;height:680px;border-radius:30px;overflow:hidden;
+    background:radial-gradient(130% 60% at 50% 0%, #fbf3e2 0%, #efe2c8 55%, #e3d2af 100%);
+    display:flex;flex-direction:column}
+  .appbar{height:50px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    position:relative;color:#5a3c1c;font-weight:700;letter-spacing:.06em;font-size:15px}
+  .gear{position:absolute;right:12px;top:9px;width:34px;height:34px;border-radius:50%;
+    border:none;background:#fff7e6;box-shadow:0 2px 5px rgba(0,0,0,.12);cursor:pointer;
+    display:grid;place-items:center;color:#7a5a2a}
+  .gear svg{width:19px;height:19px}
+  .gear .lk{position:absolute;right:-2px;bottom:-2px;width:13px;height:13px;color:#b08a3a}
+
+  .view{flex:1 1 auto;position:relative;overflow:hidden}
+  .view[hidden]{display:none}
+  .view-pad{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center}
+
+  .nav{height:74px;flex:0 0 auto;display:flex;background:#fffaf0;border-top:1px solid #ecdcc0}
+  .nav button{flex:1;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:3px;color:#9a8868;font-size:12px;font-weight:700;font-family:var(--font)}
+  .nav button svg{width:24px;height:24px}
+  .nav button.on{color:var(--accent-d)}
+
+  .clockbox{width:300px;max-width:90%;margin-top:4px}
+  .clockbox.sm{width:236px;margin-top:2px}
+
+  /* animations */
+  @keyframes swing{0%{transform:rotate(10deg)}50%{transform:rotate(-10deg)}100%{transform:rotate(10deg)}}
+  .pendulum{transform-box:view-box;transform-origin:200px 470px;animation:swing 1.6s ease-in-out infinite}
+  @keyframes srot{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  .secondhand{transform-box:view-box;transform-origin:200px 342px;animation:srot 60s steps(60) infinite}
+  .door-l,.door-r{transform-box:view-box;transition:transform .34s ease}
+  .door-l{transform-origin:162px 197px}
+  .door-r{transform-origin:238px 197px}
+  .doors-open .door-l{transform:scaleX(.06)}
+  .doors-open .door-r{transform:scaleX(.06)}
+  .doorimg{transition:opacity .35s}
+  .doors-wrap.doors-open.doorimg{opacity:0}
+  .bird-grp{transform-box:view-box;transform-origin:200px 205px}
+  .bird-grp.out{animation:peek 1.5s ease-in-out}
+  @keyframes peek{0%{transform:translateY(0)}22%{transform:translateY(13px)}58%{transform:translateY(13px)}100%{transform:translateY(0)}}
+
+  .readout{margin-top:10px;background:#fff7e6;border:2px solid #e7d2a3;border-radius:20px;
+    padding:8px 22px;font-size:34px;font-weight:800;color:#5a3c1c;box-shadow:0 4px 0 #e7d2a3}
+  .hint{margin-top:12px;color:#86714e;font-size:14px;font-weight:700}
+  .pill-btn{margin-top:16px;border:none;border-radius:999px;padding:12px 24px;font-size:16px;font-weight:800;
+    font-family:var(--font);color:#fff;background:linear-gradient(180deg,#e6a93a,#c98615);
+    box-shadow:0 5px 0 #a06b0e;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .pill-btn svg{width:20px;height:20px}
+
+  .qcard{margin:14px 12px 0;background:#fffaf0;border:2px solid #ead9b6;border-radius:18px;
+    padding:14px 16px;text-align:center;width:calc(100% - 24px)}
+  .qcard .q{font-size:20px;font-weight:800;color:#5a3c1c}
+  .qrow{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+  .qopt{width:62px;height:62px;border-radius:16px;border:2px solid #ead9b6;background:#fff;
+    font-size:26px;font-weight:800;color:#5a3c1c;cursor:pointer;font-family:var(--font)}
+  .stars{margin-top:12px;display:flex;gap:6px;justify-content:center}
+  .stars svg{width:26px;height:26px;color:#e6b93a}
+
+  .set-wrap{padding:14px 16px;width:100%;overflow:auto}
+  .set-grp{background:#fffaf0;border:1px solid #ead9b6;border-radius:16px;padding:12px 14px;margin-bottom:12px}
+  .set-grp h3{margin:0 0 9px;font-size:13px;color:#8a734c;letter-spacing:.04em}
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{border:2px solid #e3cfa3;background:#fff;border-radius:12px;padding:9px 14px;font-weight:800;
+    color:#6a5430;cursor:pointer;font-family:var(--font);font-size:14px}
+  .seg button.on{background:var(--accent);color:#fff;border-color:var(--accent-d)}
+  .note{font-size:12px;color:#9a8868;margin-top:6px}
+  .parent{display:flex;align-items:center;gap:8px;background:#fff4e0;border:1px dashed #d9b977;
+    border-radius:12px;padding:9px 12px;font-size:12px;color:#8a6a2a;margin-bottom:12px}
+  .parent svg{width:18px;height:18px;flex:0 0 auto;color:#b07f2a}
+
+  .controls{flex:0 0 300px;max-width:340px;background:var(--panel);border:1px solid #ead9b6;border-radius:18px;
+    padding:16px 18px;box-shadow:0 10px 26px rgba(70,45,15,.12)}
+  .controls h2{font-size:13px;letter-spacing:.08em;color:#9a7b46;margin:0 0 4px}
+  .controls .cap{font-size:12px;color:#8a7a60;margin:0 0 14px}
+  .ctl-grp{margin-bottom:14px}
+  .ctl-grp label{display:block;font-size:12px;font-weight:800;color:#6a5836;margin-bottom:6px}
+  .ctl-grp .seg button{font-size:13px;padding:7px 11px}
+  .legend{font-size:12px;color:#7a6a52;line-height:1.7;border-top:1px dashed #e2d2b2;padding-top:10px;margin-top:6px}
+  .legend b{color:#5a4a2c}
+
+  .flow{margin-top:46px}
+  .flow h2{font-size:16px;margin:0 0 14px;color:#5a4628}
+  .map{background:var(--panel);border:1px solid #ead9b6;border-radius:18px;padding:26px 22px;
+    box-shadow:0 10px 26px rgba(70,45,15,.1);overflow-x:auto}
+  .legend2{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12px;color:#7a6a52}
+  .legend2 span{display:inline-flex;align-items:center;gap:6px}
+  .swatch{width:14px;height:14px;border-radius:4px;display:inline-block}
+
+  .assets{margin-top:46px}
+  .assets h2{font-size:16px;margin:0 0 6px;color:#5a4628}
+  .assets p.lead{font-size:13px;color:#7a6a52;margin:0 0 14px;max-width:780px}
+  .atable{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid #ead9b6;
+    border-radius:14px;overflow:hidden;font-size:13px}
+  .atable th,.atable td{padding:10px 12px;text-align:left;border-bottom:1px solid #f0e3c8}
+  .atable th{background:#f7eeda;color:#7a6238;font-size:12px;letter-spacing:.03em}
+  .atable td code{background:#f3ead4;border-radius:5px;padding:1px 6px;color:#8a5a1c}
+  .atable tr:last-child td{border-bottom:none}
+  .gallery{margin-top:46px}
+  .gallery h2{font-size:16px;margin:0 0 6px;color:#5a4628}
+  .gnote{font-size:13px;color:#7a6a52;margin:0 0 14px;max-width:820px}
+  .gnote code{background:#f3ead4;border-radius:5px;padding:1px 6px;color:#8a5a1c}
+  .ggrid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+  @media(max-width:760px){.ggrid{grid-template-columns:repeat(3,1fr)}}
+  .gcell{background:var(--panel);border:2px solid #ead9b6;border-radius:14px;padding:8px 8px 10px;
+    text-align:center;cursor:pointer;position:relative;transition:border-color .15s,box-shadow .15s}
+  .gcell.on{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,143,107,.18)}
+  .gcell .hh{position:absolute;top:6px;left:9px;font-size:12px;font-weight:800;color:#b08a3a}
+  .gcell .thumb{height:78px;display:grid;place-items:center;margin-top:6px}
+  .gcell .thumb img{max-height:78px;max-width:96%}
+  .gcell .thumb svg{height:78px;width:100%}
+  .gcell .nm{font-size:13px;font-weight:800;color:#5a4628;margin-top:4px}
+  .gcell .cl{font-size:11px;color:#8a7a60;margin-top:1px}
+  .gcell .play{margin-top:7px;border:none;border-radius:999px;background:#eef7f2;color:#1f6e51;
+    font-weight:800;font-size:12px;padding:5px 13px;cursor:pointer;font-family:var(--font)}
+  footer{margin-top:40px;color:#9a8a70;font-size:12px;text-align:center}
+  .tag{display:inline-block;background:#fff3df;border:1px solid #e6cf9f;color:#9a6f25;
+    border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;margin-left:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>はとどけい <span class="tag">モックアップ（承認用）</span></h1>
+  <p class="sub">クラシック木製のカッコー時計 ＋ 幼児の時間学習。見た目イメージ・画面遷移・「仮素材→画像差し替え」の設計を確認するための、ビルド不要の試作です。時計は<strong>スロット分割</strong>で描画し、各パーツは既定でプロシージャル SVG（仮素材）、manifest を差し替えるだけで Codex 生成画像に置換できます。</p>
+
+  <div class="stage">
+    <!-- ============ DEVICE ============ -->
+    <div class="device">
+      <div class="screen" id="screen">
+        <div class="appbar">
+          <span id="title">とけい</span>
+          <button class="gear" id="gearBtn" title="せってい（おうちのひと用）">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94a7.49 7.49 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.74 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.49 7.49 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.49.38 1.03.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+            <svg class="lk" viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2" fill="currentColor"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+        </div>
+
+        <section class="view" id="v-home">
+          <div class="view-pad">
+            <div class="clockbox" id="clock-home"></div>
+            <div class="hint" id="home-hint">まいせいじ、はとが でて なくよ</div>
+            <button class="pill-btn" id="cuckooBtn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.4 2.4 0 0 0 2.4-2h-4.8A2.4 2.4 0 0 0 12 22zm6.5-5V11c0-3.1-1.8-5.5-4.5-6.1V4a2 2 0 1 0-4 0v.9C7.3 5.5 5.5 7.9 5.5 11v6L4 18.5V19h16v-.5z"/></svg>
+              はとを よぶ
+            </button>
+          </div>
+        </section>
+
+        <section class="view" id="v-make" hidden>
+          <div class="view-pad">
+            <div class="clockbox sm" id="clock-make"></div>
+            <div class="readout" id="make-readout">3じ</div>
+            <div class="hint">はりを ぐるっと うごかしてみよう</div>
+          </div>
+        </section>
+
+        <section class="view" id="v-quiz" hidden>
+          <div class="view-pad">
+            <div class="qcard"><div class="q" id="quiz-q">「なんじ」かな？</div></div>
+            <div class="clockbox sm" id="clock-quiz"></div>
+            <div class="qrow" id="quiz-opts"></div>
+            <div class="stars" id="quiz-stars"></div>
+          </div>
+        </section>
+
+        <section class="view" id="v-set" hidden>
+          <div class="set-wrap">
+            <div class="parent">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2" fill="currentColor"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" stroke="currentColor" stroke-width="2"/></svg>
+              おうちのひとへ：このがめんは「ながおし」でひらきます（こどもの ごそうさ ぼうし）
+            </div>
+            <div class="set-grp">
+              <h3>むずかしさ</h3>
+              <div class="seg" data-ctl="diff">
+                <button data-v="easy">やさしい</button><button data-v="normal">ふつう</button><button data-v="hard">むずかしい</button>
+              </div>
+              <p class="note">やさしい＝みじかい はりだけ／ふつう＝はん（30ぷん）／むずかしい＝5ふんめもり・びょうしん</p>
+            </div>
+            <div class="set-grp">
+              <h3>もじばん</h3>
+              <div class="seg" data-ctl="num">
+                <button data-v="arabic">1 2 3（すうじ）</button><button data-v="roman">Ⅰ Ⅱ Ⅲ（ローマ）</button>
+              </div>
+              <p class="note">がくしゅうは すうじ すいしょう。ローマすうじは クラシックな みため。</p>
+            </div>
+            <div class="set-grp">
+              <h3>おと</h3>
+              <div class="seg" data-ctl="snd"><button data-v="on">オン</button><button data-v="off">オフ</button></div>
+              <p class="note">はとの なきごえ ＋ カチコチおと（ごうせいおん・しずかモードあり）</p>
+            </div>
+          </div>
+        </section>
+
+        <nav class="nav" id="nav">
+          <button data-go="home" class="on">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>とけい</button>
+          <button data-go="make">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.8 11V5.4a1.5 1.5 0 0 1 3 0V10h1V4.4a1.5 1.5 0 0 1 3 0V11h1V6.4a1.5 1.5 0 0 1 3 0v6.6a6 6 0 0 1-6 6h-1.6a5 5 0 0 1-4.3-2.5l-2.2-3.7a1.5 1.5 0 0 1 2.5-1.7L8.8 14z"/></svg>つくる</button>
+          <button data-go="quiz">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M9.3 9.2a2.8 2.8 0 1 1 3.7 2.6c-.8.3-1 .9-1 1.6"/><circle cx="12" cy="16.6" r="0.4" fill="currentColor"/></svg>クイズ</button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- ============ OPERATOR CONTROLS ============ -->
+    <aside class="controls">
+      <h2>みかた切替（試作操作）</h2>
+      <p class="cap">※ この右パネルは確認用。本番アプリには出ません。</p>
+      <div class="ctl-grp">
+        <label>がめん</label>
+        <div class="seg" data-op="screen">
+          <button data-v="home" class="on">とけい</button><button data-v="make">つくる</button>
+          <button data-v="quiz">クイズ</button><button data-v="set">せってい</button>
+        </div>
+      </div>
+      <div class="ctl-grp">
+        <label>むずかしさ（時計の見え方が変わる）</label>
+        <div class="seg" data-op="diff">
+          <button data-v="easy">やさしい</button><button data-v="normal" class="on">ふつう</button><button data-v="hard">むずかしい</button>
+        </div>
+      </div>
+      <div class="ctl-grp">
+        <label>もじばん</label>
+        <div class="seg" data-op="num"><button data-v="arabic" class="on">すうじ</button><button data-v="roman">ローマ</button></div>
+      </div>
+      <div class="ctl-grp">
+        <label>そざい（差し替え設計の確認）</label>
+        <div class="seg" data-op="mat">
+          <button data-v="svg" class="on">仮SVG</button><button data-v="slot">差し替え枠</button>
+        </div>
+      </div>
+      <div class="legend">
+        <b>幼児学習の作り込み（予定）</b><br>
+        ・やさしい：短針だけ強調、12個の大きな数字<br>
+        ・ふつう：長針＋「はん」(30分)の概念<br>
+        ・むずかしい：5分目盛りの内側リング＋秒針＋「○じ○ふん」<br>
+        ・正解すると鳩がごほうびに鳴く演出<br>
+        <b style="display:block;margin-top:8px">差し替え枠</b>
+        各パーツの画像スロット位置を緑の点線で表示。ここに Codex 生成画像を流し込みます。
+      </div>
+    </aside>
+  </div>
+
+  <!-- ============ FLOW MAP ============ -->
+  <section class="flow">
+    <h2>画面遷移図</h2>
+    <div class="map">
+      <svg viewBox="0 0 980 380" width="100%" role="img" aria-label="画面遷移図">
+        <defs>
+          <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#9a7b46"/></marker>
+          <marker id="arr2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#2f8f6b"/></marker>
+        </defs>
+        <g transform="translate(70,120)">
+          <rect width="200" height="100" rx="16" fill="#fbf0d8" stroke="#caa53d" stroke-width="2"/>
+          <text x="100" y="34" text-anchor="middle" font-size="17" font-weight="800" fill="#5a3c1c">とけい（ホーム）</text>
+          <text x="100" y="58" text-anchor="middle" font-size="12" fill="#7a6a52">実時刻と同期した</text>
+          <text x="100" y="76" text-anchor="middle" font-size="12" fill="#7a6a52">飾り鳩時計</text>
+        </g>
+        <g transform="translate(390,120)">
+          <rect width="200" height="100" rx="16" fill="#fbf0d8" stroke="#caa53d" stroke-width="2"/>
+          <text x="100" y="34" text-anchor="middle" font-size="17" font-weight="800" fill="#5a3c1c">つくる</text>
+          <text x="100" y="58" text-anchor="middle" font-size="12" fill="#7a6a52">針を動かして</text>
+          <text x="100" y="76" text-anchor="middle" font-size="12" fill="#7a6a52">時刻を作る・読む</text>
+        </g>
+        <g transform="translate(710,120)">
+          <rect width="200" height="100" rx="16" fill="#fbf0d8" stroke="#caa53d" stroke-width="2"/>
+          <text x="100" y="34" text-anchor="middle" font-size="17" font-weight="800" fill="#5a3c1c">クイズ</text>
+          <text x="100" y="58" text-anchor="middle" font-size="12" fill="#7a6a52">「何時？」を当てる</text>
+          <text x="100" y="76" text-anchor="middle" font-size="12" fill="#7a6a52">/「○時にして」</text>
+        </g>
+        <line x1="270" y1="160" x2="388" y2="160" stroke="#2f8f6b" stroke-width="2.5" marker-end="url(#arr2)" marker-start="url(#arr2)"/>
+        <line x1="590" y1="160" x2="708" y2="160" stroke="#2f8f6b" stroke-width="2.5" marker-end="url(#arr2)" marker-start="url(#arr2)"/>
+        <text x="490" y="248" text-anchor="middle" font-size="12" fill="#2f8f6b" font-weight="700">下のナビゲーションでいつでも行き来</text>
+        <g transform="translate(70,12)">
+          <rect width="200" height="64" rx="14" fill="#fff4e0" stroke="#e0b85e" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="100" y="27" text-anchor="middle" font-size="12.5" font-weight="800" fill="#9a6f25">毎正時イベント</text>
+          <text x="100" y="47" text-anchor="middle" font-size="11.5" fill="#9a6f25">扉が開き鳩が「時刻の数」鳴く</text>
+        </g>
+        <line x1="170" y1="76" x2="170" y2="118" stroke="#e0b85e" stroke-width="2" marker-end="url(#arr)"/>
+        <g transform="translate(390,290)">
+          <rect width="200" height="74" rx="16" fill="#eef7f2" stroke="#2f8f6b" stroke-width="2"/>
+          <text x="100" y="30" text-anchor="middle" font-size="15" font-weight="800" fill="#1f6e51">せってい（🔒長押し）</text>
+          <text x="100" y="52" text-anchor="middle" font-size="11.5" fill="#3f7a63">難易度／文字盤／音</text>
+        </g>
+        <path d="M150,222 C150,270 360,300 388,318" fill="none" stroke="#9a7b46" stroke-width="2" marker-end="url(#arr)"/>
+        <path d="M490,222 L490,288" fill="none" stroke="#9a7b46" stroke-width="2" marker-end="url(#arr)"/>
+        <path d="M810,222 C810,270 620,300 592,318" fill="none" stroke="#9a7b46" stroke-width="2" marker-end="url(#arr)"/>
+      </svg>
+      <div class="legend2">
+        <span><i class="swatch" style="background:#2f8f6b"></i> 下ナビで自由に行き来</span>
+        <span><i class="swatch" style="background:#9a7b46"></i> 歯車→設定（戻るで復帰）</span>
+        <span><i class="swatch" style="background:#e0b85e"></i> 自動イベント（毎正時の鳩）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ASSET SLOT SPEC ============ -->
+  <section class="assets">
+    <h2>差し替え用アセット枠（Codex 画像生成むけ仕様）</h2>
+    <p class="lead">時計は下表のスロットで構成。既定はプロシージャル SVG（仮素材）で、<code>assets.json</code> の各スロットを画像 URL に差し替えれば置換されます。サイズは SVG 座標（幅400基準）の比率なので解像度非依存。書き出しは <strong>透過 PNG ×3（または SVG）</strong>推奨。数字・針・目盛りは学習機能上ベクター固定（画像化しない）。</p>
+    <table class="atable">
+      <thead><tr><th>スロット</th><th>役割</th><th>枠サイズ(W×H)</th><th>透過</th><th>備考</th></tr></thead>
+      <tbody>
+        <tr><td><code>case</code></td><td>本体＋屋根の木枠</td><td>320 × 430</td><td>必要</td><td>中央の文字盤・扉部分は上のスロットで隠れる</td></tr>
+        <tr><td><code>ornament</code></td><td>頂部の飾り（鹿角/葉）</td><td>100 × 48</td><td>必要</td><td>case の上に重ねる</td></tr>
+        <tr><td><code>door</code></td><td>カッコー扉（閉じた状態）</td><td>76 × 60</td><td>必要</td><td>開閉アニメは別途。観音開きにするなら左右2枚</td></tr>
+        <tr><td><code>bird</code></td><td>鳩（横向き）</td><td>56 × 54</td><td>必要</td><td>扉から下に出る向き。左向き基準</td></tr>
+        <tr><td><code>dialPlate</code></td><td>文字盤の盤面＋外枠</td><td>216 × 216（円）</td><td>任意</td><td>数字・針はこの上にベクター描画</td></tr>
+        <tr><td><code>pendulum</code></td><td>振り子（棒＋錘）</td><td>56 × 194</td><td>必要</td><td>上端中央が揺れの支点</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ BIRD GALLERY ============ -->
+  <section class="gallery">
+    <h2>12羽の鳩 × 鳴き声</h2>
+    <p class="gnote">時刻ごとに違う鳥が登場します（N時にはその鳥が N 回鳴く想定）。カードを選ぶとホームの鳩が切り替わり、<strong>▶ なきごえ</strong>で鳴き声を試聴できます。画像は <code>assets/birds/bird_01.png〜bird_12.png</code> を置くと自動で差し替わります（未配置はプロシージャル仮表示）。鳴き声は Web Audio 合成で音源ファイル不要。</p>
+    <div class="ggrid" id="ggrid"></div>
+  </section>
+
+  <footer>はとどけい mockup — クラシック木製カッコー時計 × 幼児の時間学習 / 仮素材→画像差し替え設計</footer>
+</div>
+
+<script>
+/* ===== 状態 ===== */
+const state = { screen:'home', diff:'normal', num:'arabic', sound:'on', mat:'svg', previewHour:1, orient:'3q' };
+const titles = { home:'とけい', make:'とけいを つくろう', quiz:'クイズ', set:'せってい' };
+
+/* ===== アセット manifest（既定は全部 svg = 仮素材） =====
+   画像化したいスロットは { type:'image', href:'assets/bird.png' } に差し替えるだけ。 */
+const ASSETS = {
+  case:{type:'svg'}, ornament:{type:'svg'}, door:{type:'svg'},
+  bird:{type:'svg'}, dialPlate:{type:'svg'}, pendulum:{type:'svg'}
+};
+
+/* スロット枠（SVG座標）: 差し替え枠プレビュー & 画像配置に使用 */
+const SLOTS = {
+  case:    {x:48, y:44,  w:304, h:426, label:'case 本体'},
+  ornament:{x:150,y:26,  w:100, h:48,  label:'ornament 飾り'},
+  door:    {x:162,y:166, w:76,  h:60,  label:'door 扉'},
+  bird:    {x:172,y:180, w:56,  h:54,  label:'bird 鳩'},
+  dialPlate:{x:98,y:240, w:204, h:204, label:'dialPlate 文字盤'},
+  pendulum:{x:172,y:452, w:56,  h:194, label:'pendulum 振り子'}
+};
+let PREVIEW_SLOTS = false;
+
+/* ===== 12羽の鳩（時刻1-12）: 見た目パレット(仮素材) + 鳴き声 ===== */
+const BIRDS = [
+ {h:1, ja:'カッコー',    en:'Cuckoo',      pal:{body:'#8a6a45',head:'#8a6a45',belly:'#dcc69a',wing:'#5f4630',beak:'#e0892a',crest:1,longTail:1}, call:{label:'ポッ ポー',notes:[784,659],type:'triangle',dur:0.32,gap:0.12,vib:0}},
+ {h:2, ja:'コマドリ',    en:'Robin',       pal:{body:'#9a6a3a',head:'#9a6a3a',belly:'#e8743a',wing:'#6e4824',beak:'#2a1a0c'}, call:{label:'ピリリィ↑',notes:[660,740,880],type:'sine',dur:0.12,gap:0.04,vib:18}},
+ {h:3, ja:'シジュウカラ',en:'Blue tit',    pal:{body:'#3f74c4',head:'#3f74c4',belly:'#f2d34a',wing:'#2a55a0',beak:'#2a1a0c'}, call:{label:'ツー ピー',notes:[1320,990],type:'square',dur:0.16,gap:0.07,vib:0}},
+ {h:4, ja:'スズメ',      en:'Sparrow',     pal:{body:'#9c7a4e',head:'#7a5e38',belly:'#ddc89c',wing:'#6a4f2e',beak:'#3a2a14'}, call:{label:'チュン チュン',notes:[1500,1500,1400],type:'square',dur:0.07,gap:0.09,vib:0}},
+ {h:5, ja:'ウグイス',    en:'Warbler',     pal:{body:'#8a9a4a',head:'#8a9a4a',belly:'#cdd49a',wing:'#6a7a34',beak:'#3a2a14'}, call:{label:'ホー ホケキョ',notes:[700,1050,860],type:'sine',dur:0.26,gap:0.06,vib:10}},
+ {h:6, ja:'インコ',      en:'Budgie',      pal:{body:'#5aa83a',head:'#e6d23a',belly:'#7ec24a',wing:'#3f7a26',beak:'#cfa05a'}, call:{label:'ピロロロ',notes:[1175,1320,1175,1480,1320],type:'sawtooth',dur:0.06,gap:0.02,vib:24}},
+ {h:7, ja:'カナリア',    en:'Canary',      pal:{body:'#f2cf2a',head:'#f2cf2a',belly:'#f7e06a',wing:'#d8b020',beak:'#d8923a'}, call:{label:'トゥルルル',notes:[1568,1660],type:'triangle',dur:0.045,gap:0.02,vib:0,trill:9}},
+ {h:8, ja:'フクロウ',    en:'Owl',         pal:{body:'#b58a55',head:'#b58a55',belly:'#e0c89a',wing:'#8a6a3a',beak:'#b07a3a',round:1}, call:{label:'ホー ホー',notes:[300,280],type:'sine',dur:0.45,gap:0.2,vib:6}},
+ {h:9, ja:'カワセミ',    en:'Kingfisher',  pal:{body:'#1fb6c4',head:'#1f9ac4',belly:'#e07a3a',wing:'#1f7aa0',beak:'#1a1208',longBeak:1}, call:{label:'チーーッ',notes:[2200,2400],type:'square',dur:0.5,gap:0,vib:40}},
+ {h:10,ja:'あかいことり',en:'Red finch',   pal:{body:'#cf2a2a',head:'#cf2a2a',belly:'#e85a4a',wing:'#a01818',beak:'#e0892a',crest:1}, call:{label:'ピチュイ↑',notes:[880,1175],type:'triangle',dur:0.14,gap:0.05,vib:14}},
+ {h:11,ja:'ハチドリ',    en:'Hummingbird', pal:{body:'#2fae6a',head:'#2fae6a',belly:'#c44a8a',wing:'#1f8a4f',beak:'#1a1208',longBeak:1}, call:{label:'チチチチ',notes:[2637,2794],type:'sine',dur:0.03,gap:0.015,vib:0,trill:12}},
+ {h:12,ja:'シマエナガ',  en:'Snow fairy',  pal:{body:'#f4f4f6',head:'#f4f4f6',belly:'#ffffff',wing:'#d8dde6',beak:'#c98f4a',longTail:1,white:1}, call:{label:'チリリ♪',notes:[2093,2349,2637],type:'sine',dur:0.08,gap:0.04,vib:8}}
+];
+
+/* 画像解決: 向き別 bird_NN_3q.png / bird_NN_side.png → 無ければ bird_NN.png → 無ければプロシージャル */
+const IMG = { '3q':{}, 'side':{} }, IMGBASE = {};
+function tryImg(map,key,src){ const i=new Image(); i.onload=()=>{ map[key]=src; renderClocks(); buildGallery(); }; i.src=src; }
+function preloadBirds(){
+  BIRDS.forEach(b=>{
+    const nn=String(b.h).padStart(2,'0');
+    tryImg(IMG['3q'],  b.h, `assets/birds/bird_${nn}_3q.png`);
+    tryImg(IMG['side'],b.h, `assets/birds/bird_${nn}_side.png`);
+    tryImg(IMGBASE,    b.h, `assets/birds/bird_${nn}.png`);
+  });
+}
+function birdSrc(hour){
+  const o=state.orient;
+  return IMG[o][hour] || IMGBASE[hour] || IMG[o==='3q'?'side':'3q'][hour] || null;
+}
+
+/* 鳥以外のパーツ: assets/parts/<slot>.png があれば自動合成 */
+const PART_SLOTS=['case','ornament','door','dialPlate','pendulum'];
+function preloadParts(){
+  PART_SLOTS.forEach(name=>{
+    const i=new Image();
+    i.onload=()=>{ ASSETS[name]={type:'image',href:`assets/parts/${name}.png`}; renderClocks(); };
+    i.src=`assets/parts/${name}.png`;
+  });
+}
+
+/* ===== 鳴き声合成（Web Audio・音源ファイル不要） ===== */
+let _ac=null;
+function ac(){ return _ac||(_ac=new (window.AudioContext||window.webkitAudioContext)()); }
+function playCall(call, force){
+  if(!call || (!force && state.sound==='off')) return;
+  const a=ac(); if(a.state==='suspended') a.resume();
+  let t=a.currentTime+0.02;
+  const seq=[];
+  if(call.trill){ for(let i=0;i<call.trill;i++) seq.push(call.notes[i%call.notes.length]); }
+  else call.notes.forEach(f=>seq.push(f));
+  seq.forEach(f=>{
+    const o=a.createOscillator(), g=a.createGain();
+    o.type=call.type; o.frequency.setValueAtTime(f,t);
+    if(call.vib){ const lfo=a.createOscillator(), lg=a.createGain();
+      lfo.frequency.value=13; lg.gain.value=call.vib; lfo.connect(lg); lg.connect(o.frequency);
+      lfo.start(t); lfo.stop(t+call.dur+0.02); }
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.22,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0008,t+call.dur);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+call.dur+0.03);
+    t+=call.dur+call.gap;
+  });
+}
+
+function slotBox(name){
+  const s=SLOTS[name];
+  return `<g>
+    <rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" rx="8"
+      fill="#2f8f6b" fill-opacity="0.06" stroke="#2f8f6b" stroke-width="2" stroke-dasharray="7 5"/>
+    <rect x="${s.x}" y="${s.y}" width="${Math.min(s.w,118)}" height="17" rx="4" fill="#2f8f6b"/>
+    <text x="${s.x+6}" y="${s.y+12.5}" font-size="11" font-weight="800" fill="#fff">${s.label}</text>
+  </g>`;
+}
+/* slot(): 差し替え枠 → 画像 → SVG の順で解決 */
+function slot(name, drawSVG){
+  if(PREVIEW_SLOTS) return slotBox(name);
+  const a=ASSETS[name];
+  if(a && a.type==='image'){
+    const s=SLOTS[name];
+    const img=`<image href="${a.href}" x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" preserveAspectRatio="xMidYMid meet"/>`;
+    return name==='door' ? `<g class="doors-wrap doorimg">${img}</g>` : img;  // 画像扉はカッコー時にフェードして鳩を見せる
+  }
+  return drawSVG();
+}
+
+/* ===== 時計 SVG（プロシージャル仮素材） ===== */
+const ROMAN=['XII','I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
+const CX=200, CY=342, R=90;
+
+function dialPlateSVG(p){
+  return `<circle cx="${CX}" cy="${CY}" r="${R+12}" fill="#caa53d" stroke="#7a5a14" stroke-width="3"/>
+    <circle cx="${CX}" cy="${CY}" r="${R+5}" fill="url(#brass_${p})"/>
+    <circle cx="${CX}" cy="${CY}" r="${R}" fill="url(#face_${p})" stroke="#cdb48a" stroke-width="1.5"/>`;
+}
+function caseSVG(p){
+  return `<g filter="url(#soft_${p})">
+    <path d="M44 150 L200 44 L356 150 Z" fill="url(#roof_${p})" stroke="#241405" stroke-width="3"/>
+    <path d="M44 150 L200 44 L356 150 Z" fill="none" filter="url(#grain_${p})" opacity="0.28"/>
+    <path d="M30 150 H370 L357 169 H43 Z" fill="#3c2410" stroke="#241405" stroke-width="2"/>
+    <rect x="56" y="150" width="288" height="320" rx="14" fill="url(#wood_${p})" stroke="#241405" stroke-width="3"/>
+    <rect x="56" y="150" width="288" height="320" rx="14" fill="none" filter="url(#grain_${p})" opacity="0.28"/>
+    <rect x="64" y="156" width="272" height="6" rx="3" fill="#fff" opacity="0.07"/>
+  </g>
+  <g fill="#caa53d" opacity="0.92">
+    <path d="M70 168 q-22 16 -7 40 q22 -7 19 -33 q-6 -5 -12 -7Z"/>
+    <path d="M330 168 q22 16 7 40 q-22 -7 -19 -33 q6 -5 12 -7Z"/>
+  </g>`;
+}
+function ornamentSVG(){
+  return `<g stroke="#caa53d" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.92">
+    <path d="M200 70 v-16 M200 60 l-13 -10 M200 60 l13 -10 M200 52 l-9 -12 M200 52 l9 -12 M187 50 l-7 -8 M213 50 l7 -8"/>
+    <circle cx="200" cy="72" r="3" fill="#caa53d"/></g>`;
+}
+function doorOpeningSVG(){
+  return `<path d="M166 200 q34 -32 68 0 v22 a5 5 0 0 1 -5 5 h-58 a5 5 0 0 1 -5 -5 z" fill="#140b04"/>`;
+}
+function birdSVG(p){
+  const cx=200, cy=205, bk=p.longBeak?17:9, eyeR=p.round?2.6:1.9, out='#3a2410';
+  return `<g stroke="${out}" stroke-width="1.3" stroke-linejoin="round">
+    ${p.longTail
+      ?`<path d="M186 ${cy+2} q-30 5 -40 -3 q26 -1 37 -11Z" fill="${p.wing}"/>`
+      :`<path d="M186 ${cy+2} q-17 5 -23 -3 q14 0 21 -9Z" fill="${p.wing}"/>`}
+    <ellipse cx="${cx}" cy="${cy+1}" rx="18" ry="${p.round?15:13}" fill="${p.body}"/>
+    <path d="M192 ${cy+3} q12 -9 23 1 q-6 11 -23 5Z" fill="${p.belly}"/>
+    <path d="M185 ${cy-1} q-13 4 -18 -3 q11 0 17 -7Z" fill="${p.wing}"/>
+    <circle cx="${cx+11}" cy="${cy-7}" r="${p.round?10:9}" fill="${p.head||p.body}"/>
+    ${p.crest?`<path d="M${cx+8} ${cy-15} q2 -11 9 -7 q-1 6 -4 9Z" fill="${p.head||p.body}"/>`:''}
+    <path d="M${cx+19} ${cy-8} l${bk} 3 l-${bk} 5 Z" fill="${p.beak}" stroke="none"/>
+    <circle cx="${cx+13}" cy="${cy-9}" r="${eyeR}" fill="#1a0f06" stroke="none"/>
+    ${p.round?`<circle cx="${cx+13}" cy="${cy-9}" r="6" fill="none" stroke="${p.beak}" stroke-width="1.3" opacity="0.6"/>`:''}
+  </g>`;
+}
+function birdResolved(hour){
+  if(PREVIEW_SLOTS) return slotBox('bird');
+  const s=SLOTS.bird, src=birdSrc(hour);
+  if(src) return `<image href="${src}" x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" preserveAspectRatio="xMidYMid meet"/>`;
+  return birdSVG((BIRDS[hour-1]||BIRDS[0]).pal);
+}
+function birdThumb(hour){
+  const src=birdSrc(hour);
+  if(src) return `<img src="${src}" alt="">`;
+  return `<svg viewBox="156 176 88 62">${birdSVG((BIRDS[hour-1]||BIRDS[0]).pal)}</svg>`;
+}
+function doorLeavesSVG(p){
+  return `<g class="doors-wrap">
+    <rect class="door-l" x="162" y="167" width="38" height="59" rx="4" fill="url(#roof_${p})" stroke="#caa53d" stroke-width="1.5"/>
+    <rect class="door-r" x="200" y="167" width="38" height="59" rx="4" fill="url(#roof_${p})" stroke="#caa53d" stroke-width="1.5"/>
+    <circle cx="199" cy="196" r="2" fill="#caa53d"/>
+  </g>`;
+}
+function pendulumInnerSVG(p){
+  return `<rect x="${CX-2.5}" y="455" width="5" height="150" rx="2.5" fill="url(#brass_${p})"/>
+    <circle cx="${CX}" cy="612" r="25" fill="url(#brass_${p})" stroke="#7a5a14" stroke-width="2"/>
+    <circle cx="${CX}" cy="612" r="12" fill="#caa53d" stroke="#8a6a1c" stroke-width="1.5"/>`;
+}
+
+function clockSVG(opts){
+  const o=Object.assign({hands:'hm',second:false,minorRing:false,h:10,m:8,s:42,pendulum:true,id:'c'},opts);
+  const idp=o.id;
+  // 数字
+  let nums='';
+  for(let i=0;i<12;i++){
+    const ang=(i*30-90)*Math.PI/180, rr=R-22;
+    const x=CX+rr*Math.cos(ang), y=CY+rr*Math.sin(ang);
+    const label=state.num==='roman'?ROMAN[i]:(i===0?12:i);
+    const fs=state.num==='roman'?17:25;
+    nums+=`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central"
+      font-size="${fs}" font-weight="800" fill="#3a2410"
+      font-family="${state.num==='roman'?'Georgia,serif':'inherit'}">${label}</text>`;
+  }
+  // 目盛り
+  let ticks='';
+  for(let i=0;i<60;i++){
+    const ang=(i*6-90)*Math.PI/180, big=i%5===0, r1=R-5, r2=R-(big?14:9);
+    ticks+=`<line x1="${(CX+r1*Math.cos(ang)).toFixed(1)}" y1="${(CY+r1*Math.sin(ang)).toFixed(1)}"
+      x2="${(CX+r2*Math.cos(ang)).toFixed(1)}" y2="${(CY+r2*Math.sin(ang)).toFixed(1)}"
+      stroke="#7a5a28" stroke-width="${big?2.3:1}"/>`;
+  }
+  // 5分リング
+  let minor='';
+  if(o.minorRing){
+    for(let i=0;i<12;i++){
+      const ang=(i*30-90)*Math.PI/180, rr=R-40;
+      const x=CX+rr*Math.cos(ang), y=CY+rr*Math.sin(ang);
+      minor+=`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central"
+        font-size="11" font-weight="700" fill="#b06a2a">${i*5}</text>`;
+    }
+  }
+  const hAng=((o.h%12)+o.m/60)*30, mAng=o.m*6;
+  const showM=o.hands==='all'||o.hands==='hm', showS=o.second&&o.hands==='all';
+  const hourHand=`<g transform="rotate(${hAng} ${CX} ${CY})"><path d="M${CX} ${CY+13} L${CX-7} ${CY-17} L${CX} ${CY-46} L${CX+7} ${CY-17} Z" fill="#2a1a0c"/></g>`;
+  const minHand =`<g transform="rotate(${mAng} ${CX} ${CY})"><path d="M${CX} ${CY+15} L${CX-5} ${CY-20} L${CX} ${CY-76} L${CX+5} ${CY-20} Z" fill="#3a2410"/></g>`;
+  const secHand =showS?`<g class="secondhand"><line x1="${CX}" y1="${CY+16}" x2="${CX}" y2="${CY-80}" stroke="#b23a2a" stroke-width="2"/><circle cx="${CX}" cy="${CY}" r="3.5" fill="#b23a2a"/></g>`:'';
+
+  const pend=o.pendulum?`<g class="pendulum">${slot('pendulum',()=>pendulumInnerSVG(idp))}</g>`:'';
+  const TOP=32;                          // 屋根の上の死に余白をトリミング
+  const H=o.pendulum?645:472;            // 振り子下の余白も詰める
+
+  return `<svg viewBox="0 ${TOP} 400 ${H-TOP}" width="100%" role="img" aria-label="木製カッコー時計">
+    <defs>
+      <linearGradient id="wood_${idp}" x1="0" y1="0" x2="0.2" y2="1">
+        <stop offset="0" stop-color="#8a5526"/><stop offset="0.5" stop-color="#643f1d"/><stop offset="1" stop-color="#3f2611"/></linearGradient>
+      <linearGradient id="roof_${idp}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#7a4a22"/><stop offset="1" stop-color="#48290f"/></linearGradient>
+      <radialGradient id="face_${idp}" cx="50%" cy="42%" r="62%">
+        <stop offset="0" stop-color="#fbf3df"/><stop offset="0.8" stop-color="#f1e3c2"/><stop offset="1" stop-color="#e3d0a4"/></radialGradient>
+      <linearGradient id="brass_${idp}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#e7cd72"/><stop offset="0.5" stop-color="#caa53d"/><stop offset="1" stop-color="#8a6a1c"/></linearGradient>
+      <filter id="grain_${idp}"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.05" numOctaves="3" seed="9" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.8 0.8 0.8 0 -0.5" result="a"/>
+        <feFlood flood-color="#34200d" result="d"/><feComposite in="d" in2="a" operator="in"/></filter>
+      <filter id="soft_${idp}" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#2a1809" flood-opacity="0.32"/></filter>
+    </defs>
+    ${pend}
+    ${slot('case',()=>caseSVG(idp))}
+    ${PREVIEW_SLOTS?'':doorOpeningSVG()}
+    <g class="bird-grp">${birdResolved(o.birdHour||state.previewHour)}</g>
+    ${slot('door',()=>doorLeavesSVG(idp))}
+    ${slot('ornament',ornamentSVG)}
+    ${slot('dialPlate',()=>dialPlateSVG(idp))}
+    ${ticks}${minor}${nums}
+    ${showM?minHand:''}${hourHand}${secHand}
+    <circle cx="${CX}" cy="${CY}" r="6.5" fill="#2a1a0c"/><circle cx="${CX}" cy="${CY}" r="3" fill="#caa53d"/>
+  </svg>`;
+}
+
+function clockOptsFor(){
+  if(state.diff==='easy') return {hands:'h',  second:false,minorRing:false};
+  if(state.diff==='hard') return {hands:'all',second:true, minorRing:true};
+  return {hands:'hm',second:false,minorRing:false};
+}
+
+/* ===== 描画 ===== */
+function renderClocks(){
+  const now=new Date();
+  document.getElementById('clock-home').innerHTML = clockSVG({...clockOptsFor(),id:'h',h:now.getHours(),m:now.getMinutes(),s:now.getSeconds(),pendulum:true});
+  document.getElementById('clock-make').innerHTML = clockSVG({...clockOptsFor(),id:'m',h:3,m:0,s:0,pendulum:false});
+  document.getElementById('clock-quiz').innerHTML = clockSVG({...clockOptsFor(),id:'q',h:7,m:0,s:0,pendulum:false});
+  document.getElementById('make-readout').textContent = state.diff==='hard'?'3じ 00ぷん':'3じ';
+  const hh=document.getElementById('home-hint');
+  if(hh){ const b=BIRDS[state.previewHour-1]; hh.textContent=`まいせいじ、はとが でてなくよ ／ いまの鳩: ${b.ja}（${b.h}じ）`; }
+}
+function syncSegments(){
+  document.querySelectorAll('[data-ctl="diff"] button,[data-op="diff"] button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.diff));
+  document.querySelectorAll('[data-ctl="num"] button,[data-op="num"] button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.num));
+  document.querySelectorAll('[data-ctl="snd"] button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.sound));
+  document.querySelectorAll('[data-op="mat"] button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.mat));
+  document.querySelectorAll('[data-op="orient"] button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.orient));
+  document.querySelectorAll('[data-op="screen"] button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.screen));
+}
+function show(scr){
+  state.screen=scr;
+  ['home','make','quiz','set'].forEach(s=>{const el=document.getElementById('v-'+s); if(el) el.hidden=(s!==scr);});
+  document.getElementById('title').textContent=titles[scr];
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.go===scr));
+  syncSegments();
+}
+const STAR='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6 6.6.6-5 4.3 1.5 6.4L12 16.6 5.9 19.3l1.5-6.4-5-4.3 6.6-.6z"/></svg>';
+function setStars(n){document.getElementById('quiz-stars').innerHTML=STAR.repeat(n);}
+function buildQuiz(){
+  const wrap=document.getElementById('quiz-opts'); wrap.innerHTML='';
+  [6,7,8].forEach(n=>{
+    const b=document.createElement('button'); b.className='qopt'; b.textContent=n;
+    b.onclick=()=>{ if(n===7){b.style.background='#d6f0e2'; cuckoo(); setStars(3);} };
+    wrap.appendChild(b);
+  });
+  setStars(3);
+}
+/* カッコー演出（鳴き声 + 扉オープン + 鳩ポップ） */
+let busy=false;
+function cuckoo(hour){
+  hour = hour||state.previewHour;
+  playCall((BIRDS[hour-1]||BIRDS[0]).call);
+  if(busy) return; busy=true;
+  document.querySelectorAll('.doors-wrap').forEach(d=>d.classList.add('doors-open'));
+  document.querySelectorAll('.bird-grp').forEach(b=>{b.classList.remove('out'); void b.offsetWidth; b.classList.add('out');});
+  setTimeout(()=>{document.querySelectorAll('.doors-wrap').forEach(d=>d.classList.remove('doors-open')); busy=false;},1500);
+}
+
+/* ===== 配線 ===== */
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button'); if(b) show(b.dataset.go);});
+document.getElementById('gearBtn').addEventListener('click',()=>show('set'));
+document.getElementById('cuckooBtn').addEventListener('click',()=>cuckoo());
+document.querySelectorAll('[data-ctl]').forEach(grp=>grp.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return; const k=grp.dataset.ctl;
+  if(k==='diff')state.diff=b.dataset.v; if(k==='num')state.num=b.dataset.v; if(k==='snd')state.sound=b.dataset.v;
+  renderClocks(); syncSegments();
+}));
+document.querySelectorAll('[data-op]').forEach(grp=>grp.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return; const k=grp.dataset.op,v=b.dataset.v;
+  if(k==='screen'){show(v);return;}
+  if(k==='diff')state.diff=v; if(k==='num')state.num=v;
+  if(k==='mat'){state.mat=v; PREVIEW_SLOTS=(v==='slot');}
+  if(k==='orient')state.orient=v;
+  renderClocks(); buildGallery(); syncSegments();
+}));
+
+/* ===== 鳩ギャラリー（12羽 × 鳴き声） ===== */
+function buildGallery(){
+  const g=document.getElementById('ggrid'); if(!g) return;
+  g.innerHTML='';
+  BIRDS.forEach(b=>{
+    const cell=document.createElement('div');
+    cell.className='gcell'+(state.previewHour===b.h?' on':'');
+    cell.innerHTML=`<div class="hh">${b.h}じ</div>
+      <div class="thumb">${birdThumb(b.h)}</div>
+      <div class="nm">${b.ja}</div>
+      <div class="cl">${b.call.label}</div>
+      <button class="play">▶ なきごえ</button>`;
+    cell.addEventListener('click',e=>{
+      const isPlay=!!e.target.closest('.play');
+      state.previewHour=b.h; renderClocks(); buildGallery();
+      if(isPlay){ playCall(b.call,true); }
+      else { if(state.screen!=='home') show('home'); cuckoo(b.h); }
+    });
+    g.appendChild(cell);
+  });
+}
+
+buildQuiz(); renderClocks(); buildGallery(); syncSegments(); show('home'); preloadBirds(); preloadParts();
+</script>
+</body>
+</html>

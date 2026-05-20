@@ -1,0 +1,15 @@
+# deps / build
+node_modules
+dist
+*.log
+.DS_Store
+.vite
+
+# プロトタイプ(mockup)の派生物・依存(本体には不要)
+mockup/node_modules
+mockup/_shots
+mockup/*.mjs
+mockup/package.json
+mockup/package-lock.json
+# 重い PNG マスター/中間生成物は配信に不要(配信は public/ の webp)。元データは手元に保持。
+mockup/assets/**/*.png
