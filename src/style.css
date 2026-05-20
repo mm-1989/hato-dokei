@@ -37,6 +37,10 @@ body{
 .clock-wrap.sm{width:min(66vw,250px)}
 .clock-svg{display:block;width:100%;height:auto}
 
+/* ホーム: ヒント無しで時計を最大表示(横幅と高さの両方に収まる最大サイズ) */
+.screen.home{justify-content:center;padding-top:0;padding-bottom:0}
+.screen.home .clock-wrap{width:min(96vw, 480px, calc((100dvh - 132px) * 0.652));margin:auto}
+
 /* animations */
 @keyframes swing{0%{transform:rotate(10deg)}50%{transform:rotate(-10deg)}100%{transform:rotate(10deg)}}
 .pendulum{transform-box:view-box;transform-origin:200px 446px;animation:swing 1.6s ease-in-out infinite}

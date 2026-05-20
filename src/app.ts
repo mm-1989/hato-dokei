@@ -81,15 +81,9 @@ function renderHome(): void {
   const html = clockSVG({ ...optsFor(), h: now.getHours(), m: now.getMinutes(), s: now.getSeconds(), num: state.num, birdHour: randHour(), pendulum: true, idp: 'home' });
   viewEl.innerHTML = `<div class="screen home">
     <div class="clock-wrap" id="home-clock">${html}</div>
-    <p class="hint" id="home-hint"></p>
   </div>`;
   const wrap = document.getElementById('home-clock')!;
   wrap.addEventListener('pointerdown', () => { unlockAudio(); summon(wrap, 1); });
-  updateHomeHint();
-}
-function updateHomeHint(): void {
-  const el = document.getElementById('home-hint');
-  if (el) el.textContent = 'とけいを タップすると、はとが でてくるよ';
 }
 
 /* ---- cuckoo 演出 ---- */
