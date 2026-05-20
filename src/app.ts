@@ -1,6 +1,6 @@
 import { state, saveSettings, type Screen } from './state';
 import { BIRDS, chimeCount } from './birds';
-import { playCall, unlockAudio } from './audio';
+import { playCall, unlockAudio, tickTock } from './audio';
 import { clockSVG, birdMarkup, setHands, CX, CY, minAngle, hourAngle } from './render';
 
 /* ---- inline icons (絵文字に頼らない) ---- */
@@ -117,6 +117,7 @@ function summon(wrap: HTMLElement, times: number): void {
 
 /* ---- リアルタイム時計ループ ---- */
 let lastChimeHour = -1;
+let tickHigh = false;
 export function startClockLoop(): void {
   // 起動直後に誤チャイムしないよう現在の時を記録
   lastChimeHour = new Date().getHours();
@@ -134,6 +135,12 @@ export function startClockLoop(): void {
       }
     }
   }, 250);
+  // 振り子のカチ・コチ(半周ごと=0.8秒で高/低を交互)。home表示中＆音ONのときだけ。
+  window.setInterval(() => {
+    if (state.screen !== 'home' || !document.getElementById('home-clock')) return;
+    tickTock(tickHigh);
+    tickHigh = !tickHigh;
+  }, 800);
 }
 
 /* ================= MAKE (とけいを つくろう) ================= */

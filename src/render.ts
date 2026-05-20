@@ -109,11 +109,14 @@ export function clockSVG(o: ClockOpts): string {
   // numerals — クリーム面の内側に配置し、クリーム色のハロー(縁取り)で背景から浮かせて可読性UP
   let nums = '';
   for (let i = 0; i < 12; i++) {
-    const ang = (i * 30 - 90) * Math.PI / 180, rr = R - 36;
+    const ang = (i * 30 - 90) * Math.PI / 180, rr = R - 34;     // クリーム面内・上の縁に当たらない半径
     const x = CX + rr * Math.cos(ang), y = CY + rr * Math.sin(ang);
-    const label = o.num === 'roman' ? ROMAN[i] : (i === 0 ? 12 : i);
-    const fs = o.num === 'roman' ? 19 : 27;
-    nums += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="800" fill="#241405" stroke="#fbf3df" stroke-width="3.6" stroke-linejoin="round" paint-order="stroke" font-family="${o.num === 'roman' ? 'Georgia,serif' : 'inherit'}">${label}</text>`;
+    const isRoman = o.num === 'roman';
+    const val = i === 0 ? 12 : i;
+    const label = isRoman ? ROMAN[i] : val;
+    const fs = isRoman ? 17 : 24;
+    const ls = (!isRoman && val >= 10) ? ' letter-spacing="-1.5"' : '';  // 2桁(10/11/12)を詰めて隣接の窮屈さを解消
+    nums += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="800" fill="#241405" stroke="#fbf3df" stroke-width="2.8" stroke-linejoin="round" paint-order="stroke"${ls} font-family="${isRoman ? 'Georgia,serif' : 'inherit'}">${label}</text>`;
   }
   // ticks — 5分位置の控えめなマークのみ(クリーム面内・縁取りの唐草と被らない)
   let ticks = '';

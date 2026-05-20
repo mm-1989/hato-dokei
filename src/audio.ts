@@ -50,20 +50,30 @@ export function playCall(call: Call, force = false): void {
   }
 }
 
-// 振り子のカチコチ(任意・控えめ)
-export function tick(): void {
+// 振り子の「カチ・コチ」。high=カチ(高め), low=コチ(低め)。減衰ノイズ＋バンドパスで本物っぽく、大きめの音量。
+export function tickTock(high: boolean): void {
   if (!state.sound) return;
   const a = ctx();
   if (a.state === 'suspended') return;
-  const o = a.createOscillator();
-  const g = a.createGain();
-  o.type = 'square';
-  o.frequency.value = 1800;
   const t = a.currentTime;
-  g.gain.setValueAtTime(0.06, t);
-  g.gain.exponentialRampToValueAtTime(0.0005, t + 0.03);
-  o.connect(g);
+  const dur = 0.055;
+  const len = Math.max(1, Math.ceil(a.sampleRate * dur));
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const ch = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len); // 減衰ノイズ(クリック感)
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const bp = a.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = high ? 2600 : 1500;
+  bp.Q.value = 6;
+  const g = a.createGain();
+  const peak = high ? 0.5 : 0.42; // 大きめ
+  g.gain.setValueAtTime(peak, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  src.connect(bp);
+  bp.connect(g);
   g.connect(a.destination);
-  o.start(t);
-  o.stop(t + 0.04);
+  src.start(t);
+  src.stop(t + dur + 0.01);
 }
